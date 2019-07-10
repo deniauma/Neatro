@@ -4,6 +4,8 @@
 #![no_std]
 #![no_main]
 
+#[link_args = "/NODEFAULTLIB /SUBSYSTEM:WINDOWS /SAFESEH:NO /DYNAMICBASE:NO /ENTRY:WinMainCRTStartup /LTCG vcruntime.lib"]
+extern "C" {}
 
 use core::intrinsics;
 use core::panic::PanicInfo;
@@ -32,9 +34,11 @@ pub extern "C" fn WinMainCRTStartup() -> () {
 pub extern "C" fn WinMain() -> () {
     // ffi_message_box();
     let win = Window::new(800, 600);
-    // let mut func_ptrs: simplealloc::WinVec<win32::FUNCTION_PTR> = simplealloc::WinVec::new();
+    glViewport(0, 0, 800, 600);
+    glClearColor(0.2, 0.3, 0.3, 1.0);
+    glClear(GL_COLOR_BUFFER_BIT);
     while !win.message_loop() {
-        
+        glClear(GL_COLOR_BUFFER_BIT);
         unsafe { SwapBuffers(win.dc) };
     }
 
