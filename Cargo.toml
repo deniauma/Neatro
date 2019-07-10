@@ -1,0 +1,13 @@
+[package]
+name = "neatro"
+version = "0.1.0"
+authors = ["mdeniaud <mathieu.deniaud@gmail.com>"]
+edition = "2018"
+
+[dependencies]
+win32 = { path = "win32"}
+tinygl = { path = "tiny-gl"}
+simplealloc = { path = "simple-alloc" }
+
+[profile.dev]
+panic = "abort"
