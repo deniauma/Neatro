@@ -233,6 +233,8 @@ extern "stdcall" {
     pub fn PostQuitMessage(nExitCode: i32);
 
     pub fn GetDC(hwnd: HWND) -> HDC;
+
+    pub fn ReleaseDC(hWnd: HWND, hdc: HDC) -> i32;
 }
 
 #[link(name = "Kernel32")]
@@ -264,6 +266,26 @@ extern "stdcall" {
     pub fn LoadLibraryW(
         lpLibFileName: LPCWSTR
     ) -> HMODULE;
+
+    pub fn VirtualAlloc(
+        lpAddress: LPVOID,
+        dwSize: usize,
+        flAllocationType: DWORD, 
+        flProtect: DWORD
+    ) -> LPVOID;
+
+    pub fn VirtualProtect(
+        lpAddress: LPVOID, 
+        dwSize: usize, 
+        flNewProtect: DWORD, 
+        lpflOldProtect: *mut DWORD
+    ) -> i32;
+
+    pub fn VirtualFree(
+        lpAddress: LPVOID, 
+        dwSize: usize, 
+        dwFreeType: DWORD
+    ) -> i32;
 }
 
 #[link(name = "Gdi32")]
@@ -282,6 +304,7 @@ extern "stdcall" {
 #[link(name = "Opengl32")]
 extern "stdcall" {
     pub fn wglCreateContext(hdc: HDC) -> HGLRC;
+    pub fn wglDeleteContext(hglrc: HGLRC) -> i32;
     pub fn wglMakeCurrent(hdc: HDC, hglrc: HGLRC) -> i32;
     pub fn wglGetProcAddress(arg: LPCSTR) -> FUNCTION_PTR;
 }
@@ -327,6 +350,7 @@ pub struct Window {
     pub height: usize,
     pub dc: HDC,
     pub hwnd: HWND,
+    pub hglrc: HGLRC,
 }
 
 impl Window {
@@ -336,6 +360,7 @@ impl Window {
         let flags: DWORD = 0x00000000 | 0x00C00000 | 0x00080000 | 0x00040000 | 0x00020000 | 0x00010000;
         let dc: HDC;
         let handle: HWND;
+        let hglrc: HGLRC;
         unsafe {
             RegisterClassW(&class);
             handle = CreateWindowExW(0, class.lpszClassName, window_name.as_ptr(), flags, 100, 100, width as i32, height as i32, ptr::null_mut(), ptr::null_mut(), class.hInstance, ptr::null_mut());
@@ -346,8 +371,8 @@ impl Window {
             let pixel_format = ChoosePixelFormat(dc, &pfd);
             SetPixelFormat(dc, pixel_format, &pfd);
 
-            let hglrc = wglCreateContext(dc);
-            wglMakeCurrent(dc,hglrc);
+            hglrc = wglCreateContext(dc);
+            wglMakeCurrent(dc, hglrc);
 
             ShowWindow(handle, 1);
         }
@@ -355,7 +380,8 @@ impl Window {
             width: width,
             height: height,
             dc: dc,
-            hwnd: handle
+            hwnd: handle,
+            hglrc: hglrc
         };
 
         window
@@ -375,6 +401,17 @@ impl Window {
                 }
             }
             quit
+        }
+    }
+}
+
+impl Drop for Window {
+    fn drop(&mut self) {
+        unsafe {
+            wglMakeCurrent(ptr::null_mut(), ptr::null_mut());
+            wglDeleteContext(self.hglrc);
+            ReleaseDC(self.hwnd, self.dc);
+            DestroyWindow(self.hwnd);
         }
     }
 }

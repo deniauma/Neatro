@@ -56,16 +56,21 @@ impl GlLib {
 
 
 pub fn glClearColor(r: f32, g: f32, b: f32, a: f32) {
-    unsafe { core::mem::transmute::<_, CLEARCOLORPROC>(get_gl_func_address("glClearColor")) (r, g, b, a); }
-}
-
-pub fn glClear(mask: u32) {
     static mut FUNC_PTR: win32::FUNCTION_PTR = core::ptr::null_mut();
     static ONCE: Once = Once::INIT;
     ONCE.run_once(|| {
-        unsafe { FUNC_PTR = get_gl_func_address("glClear") }
+        unsafe { FUNC_PTR = get_gl_func_address("glClearColor") }
     });
-    unsafe { core::mem::transmute::<_, CLEARPROC>(FUNC_PTR) (mask); }
+    unsafe { core::mem::transmute::<_, CLEARCOLORPROC>(FUNC_PTR) (r, g, b, a); }
+}
+
+pub fn glClear(mask: u32) {
+    static mut FUNC_CLEAR_PTR: win32::FUNCTION_PTR = core::ptr::null_mut();
+    static ONCE: Once = Once::INIT;
+    ONCE.run_once(|| {
+        unsafe { FUNC_CLEAR_PTR = get_gl_func_address("glClear") }
+    });
+    unsafe { core::mem::transmute::<_, CLEARPROC>(FUNC_CLEAR_PTR) (mask); }
 }
 
 pub fn glViewport(x: i32, y: i32, width: i32, height: i32) {
