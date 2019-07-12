@@ -8,18 +8,22 @@ const MEM_RELEASE: u32 = 0x00008000;
 const PAGE_READWRITE: u32 = 0x04;
 const PAGE_EXECUTE_READ: u32 = 0x20;
 
-pub struct AsmBuf {
+pub struct JitMem {
     addr: *mut u8,
-    len: isize
+    size: usize,
+    offset: isize,
+    fn_offset: isize
 }
 
-impl AsmBuf {
+impl JitMem {
     pub fn new() -> Self {
         let buf = unsafe { VirtualAlloc(ptr::null_mut(), PAGE_SIZE, MEM_RESERVE | MEM_COMMIT, PAGE_READWRITE) };
 
         Self {
             addr: buf as *mut u8,
-            len: 0
+            size: PAGE_SIZE,
+            offset: 0,
+            fn_offset: 0
         }
     }
 
@@ -29,12 +33,18 @@ impl AsmBuf {
     }
 
     pub fn push_instruct_byte(&mut self, byte: u8) {
-        unsafe { self.addr.offset(self.len).write(byte) };
-        self.len += 1;
+        unsafe { self.addr.offset(self.offset).write(byte) };
+        self.offset += 1;
+    }
+
+    pub fn set_jit_fn(&mut self) -> *mut u8 {
+        let res = unsafe { self.addr.offset(self.fn_offset) };
+        self.fn_offset += self.offset;
+        res
     }
 }
 
-impl Drop for AsmBuf {
+impl Drop for JitMem {
     fn drop(&mut self) {
         unsafe {
             VirtualFree(self.addr as win32::LPVOID, 0, MEM_RELEASE);
@@ -48,18 +58,15 @@ mod tests {
 
     #[test]
     fn asmbuf_create() {
-        let mut asmbuf = AsmBuf::new();
+        let mut asmbuf = JitMem::new();
         assert_ne!(asmbuf.addr, ptr::null_mut());
         asmbuf.push_instruct_byte(0x48);
-        // asmbuf.push_instruct_byte(0x89);
-        // asmbuf.push_instruct_byte(0xf8);
         asmbuf.push_instruct_byte(0xc7);
         asmbuf.push_instruct_byte(0xc0);
         asmbuf.push_instruct_byte(0x03);
         asmbuf.push_instruct_byte(0x00);
         asmbuf.push_instruct_byte(0x00);
         asmbuf.push_instruct_byte(0x00);
-        // assert_eq!(asmbuf.len, 3);
         asmbuf.push_instruct_byte(0xc3);
         asmbuf.finalize(); //asm: mov rax, 0x03; ret
         let res = unsafe { core::mem::transmute::<_, fn() -> i32>(asmbuf.addr)() };
@@ -68,15 +75,43 @@ mod tests {
 
     #[test]
     fn asmbuf_echo_fn() {
-        let mut asmbuf = AsmBuf::new();
+        let mut asmbuf = JitMem::new();
         assert_ne!(asmbuf.addr, ptr::null_mut());
         asmbuf.push_instruct_byte(0x48);
         asmbuf.push_instruct_byte(0x89);
         asmbuf.push_instruct_byte(0xc8);
-        assert_eq!(asmbuf.len, 3);
+        assert_eq!(asmbuf.offset, 3);
         asmbuf.push_instruct_byte(0xc3);
+        let fn_addr = asmbuf.set_jit_fn();
         asmbuf.finalize(); //asm: mov rax, rcx; ret
-        let res = unsafe { core::mem::transmute::<_, fn(i32) -> i32>(asmbuf.addr)(3) };
+        let res = unsafe { core::mem::transmute::<_, fn(i32) -> i32>(fn_addr)(3) };
         assert_eq!(res, 3);
+    }
+
+    #[test]
+    fn jitmem_2_fn() {
+        let mut asmbuf = JitMem::new();
+        assert_ne!(asmbuf.addr, ptr::null_mut());
+        // fn 1
+        asmbuf.push_instruct_byte(0x48);
+        asmbuf.push_instruct_byte(0xc7);
+        asmbuf.push_instruct_byte(0xc0);
+        asmbuf.push_instruct_byte(0x03);
+        asmbuf.push_instruct_byte(0x00);
+        asmbuf.push_instruct_byte(0x00);
+        asmbuf.push_instruct_byte(0x00);
+        asmbuf.push_instruct_byte(0xc3);
+        let fn1 = asmbuf.set_jit_fn();
+        //fn 2
+        asmbuf.push_instruct_byte(0x48);
+        asmbuf.push_instruct_byte(0x89);
+        asmbuf.push_instruct_byte(0xc8);
+        asmbuf.push_instruct_byte(0xc3);
+        let fn2 = asmbuf.set_jit_fn();
+        asmbuf.finalize(); //asm: mov rax, 0x03; ret
+        let res1 = unsafe { core::mem::transmute::<_, fn() -> i32>(fn1)() };
+        assert_eq!(res1, 3);
+        let res2 = unsafe { core::mem::transmute::<_, fn(i32) -> i32>(fn2)(5) };
+        assert_eq!(res2, 5);
     }
 }
