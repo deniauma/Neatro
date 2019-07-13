@@ -1,3 +1,4 @@
+#![no_std]
 use win32::{VirtualAlloc, VirtualFree, VirtualProtect};
 use core::ptr;
 
@@ -37,6 +38,27 @@ impl JitMem {
         self.offset += 1;
     }
 
+    pub fn push_u16(&mut self, value: u16) {
+        let bytes = value.to_le_bytes();
+        for &b in &bytes {
+            self.push_instruct_byte(b);
+        }
+    }
+
+    pub fn push_u32(&mut self, value: u32) {
+        let bytes = value.to_le_bytes();
+        for &b in &bytes {
+            self.push_instruct_byte(b);
+        }
+    }
+
+    pub fn push_u64(&mut self, value: u64) {
+        let bytes = value.to_le_bytes();
+        for &b in &bytes {
+            self.push_instruct_byte(b);
+        }
+    }
+
     pub fn set_jit_fn(&mut self) -> *mut u8 {
         let res = unsafe { self.addr.offset(self.fn_offset) };
         self.fn_offset += self.offset;
@@ -51,6 +73,7 @@ impl Drop for JitMem {
         }
     }
 }
+
 
 #[cfg(test)]
 mod tests {
@@ -113,5 +136,24 @@ mod tests {
         assert_eq!(res1, 3);
         let res2 = unsafe { core::mem::transmute::<_, fn(i32) -> i32>(fn2)(5) };
         assert_eq!(res2, 5);
+    }
+
+    pub extern "sysv64" fn test_from_jit() -> i32 {
+        3+2
+    }
+
+    #[test]
+    fn jitmem_rust_fn() {
+        let mut asmbuf = JitMem::new();
+        let fn_addr: u64 = unsafe { core::mem::transmute(test_from_jit as extern "sysv64" fn() -> i32) };
+        asmbuf.push_instruct_byte(0x48);
+        asmbuf.push_instruct_byte(0xb8);
+        asmbuf.push_u64(fn_addr);
+        asmbuf.push_instruct_byte(0xff);
+        asmbuf.push_instruct_byte(0xd0);
+        asmbuf.push_instruct_byte(0xc3);
+        asmbuf.finalize();
+        let res = unsafe { core::mem::transmute::<_, fn() -> i32>(asmbuf.set_jit_fn())() };
+        assert_eq!(res, 5);
     }
 }
