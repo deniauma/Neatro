@@ -306,6 +306,7 @@ extern "stdcall" {
     pub fn wglCreateContext(hdc: HDC) -> HGLRC;
     pub fn wglDeleteContext(hglrc: HGLRC) -> i32;
     pub fn wglMakeCurrent(hdc: HDC, hglrc: HGLRC) -> i32;
+    pub fn wglGetCurrentContext() -> HGLRC;
     pub fn wglGetProcAddress(arg: LPCSTR) -> FUNCTION_PTR;
 }
 

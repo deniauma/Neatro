@@ -36,7 +36,7 @@ pub struct GlLib {
 }
 
 impl GlLib {
-    pub fn new() -> Self {
+    pub fn new() -> Result<Self, u8> {
         let functions = [
             "glClear",
             "glClearColor",
@@ -44,17 +44,37 @@ impl GlLib {
         ];
 
         let mut func_ptrs: WinVec<win32::FUNCTION_PTR> = WinVec::new();
+        let mut i = 10;
+        let gl_context = unsafe { win32::wglGetCurrentContext() };
+        if gl_context.is_null() {
+            return Err(100);
+        }
         for &func in &functions {
-            func_ptrs.push(get_gl_func_address(func));
+            let fn_ptr = get_gl_func_address(func);
+            if fn_ptr.is_null() {
+                return Err(i);
+            }
+            func_ptrs.push(fn_ptr);
+            i += 1;
         }
 
-        Self {
+        Ok(Self {
             ptrs: func_ptrs
-        }
+        })
+    }
+
+    pub fn clear_color(&self, r: f32, g: f32, b: f32, a: f32) {
+        let function = self.ptrs[1] as *const();
+        unsafe { core::mem::transmute::<*const(), CLEARCOLORPROC>(function) (r, g, b, a); }
+    }
+
+    pub fn clear(&self, mask: u32) {
+        let function = self.ptrs[0] as *const();
+        unsafe { core::mem::transmute::<*const(), CLEARPROC>(function) (mask); }
     }
 }
 
-
+/*
 pub fn glClearColor(r: f32, g: f32, b: f32, a: f32) {
     static mut FUNC_PTR: win32::FUNCTION_PTR = core::ptr::null_mut();
     static ONCE: Once = Once::INIT;
@@ -74,5 +94,17 @@ pub fn glClear(mask: u32) {
 }
 
 pub fn glViewport(x: i32, y: i32, width: i32, height: i32) {
-    unsafe { core::mem::transmute::<_, VIEWPORTPROC>(get_gl_func_address("glViewport")) (x, y, width, height); }
+    static mut FUNC_PTR: win32::FUNCTION_PTR = core::ptr::null_mut();
+    static ONCE: Once = Once::INIT;
+    ONCE.run_once(|| {
+        unsafe { FUNC_PTR = get_gl_func_address("glViewport") }
+    });
+    unsafe { core::mem::transmute::<_, VIEWPORTPROC>(FUNC_PTR) (x, y, width, height); }
+}*/
+
+#[link(name = "Opengl32")]
+extern "stdcall" {
+    pub fn glClearColor(r: f32, g: f32, b: f32, a: f32);
+    pub fn glClear(mask: u32);
+    pub fn glViewport(x: i32, y: i32, width: i32, height: i32);
 }
