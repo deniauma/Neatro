@@ -10,7 +10,7 @@ pub fn get_gl_func(func_name: &str) -> win32::FUNCTION_PTR {
         // let dll = &[b'o' as u16, b'p' as u16, b'e' as u16, b'n' as u16, b'g' as u16, b'l' as u16, b'3' as u16, b'2' as u16, b'.' as u16, b'd' as u16, b'l' as u16, b'l' as u16, 0 as u16]; //"opengl32.dll"
         let dll = CString::from_str("opengl32.dll").to_u16_str();
         let module = LoadLibraryW(dll.as_ptr());
-        p = GetProcAddress(module, name.as_ptr());
+        p = wglGetProcAddress(name.as_ptr());
     }
     p
 }
@@ -21,7 +21,8 @@ fn main() {
     let functions = [
             "glClear",
             "glClearColor",
-            "glViewport"
+            "glViewport",
+            "glCreateShader"
         ];
     println!("GL context: {:?}", unsafe { win32::wglGetCurrentContext() });
     for &func in &functions {

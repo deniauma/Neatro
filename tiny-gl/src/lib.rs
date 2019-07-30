@@ -10,10 +10,14 @@ glViewport
 pub const GL_COLOR_BUFFER_BIT: u32 = 0x00004000;
 pub const GL_DEPTH_BUFFER_BIT: u32 = 0x00000100;
 pub const GL_STENCIL_BUFFER_BIT: u32 = 0x00000400;
+pub const GL_VERTEX_SHADER: u32 = 0x8B31;
+pub const GL_FRAGMENT_SHADER: u32 = 0x8B30;
 
 pub type CLEARCOLORPROC = extern "system" fn(f32, f32, f32, f32) -> ();
 pub type CLEARPROC = extern "system" fn(u32) -> ();
 pub type VIEWPORTPROC = extern "system" fn(i32, i32, i32, i32) -> ();
+pub type CREATESHADERPROC = extern "system" fn(u32) -> u32;
+pub type SHADERSOURCEPROC = extern "system" fn() -> ();
 
 pub fn get_gl_func_address(func_name: &str) -> win32::FUNCTION_PTR {
     // let name = &[b'g' as i8, b'l' as i8, b'C' as i8, b'l' as i8, b'e' as i8, b'a' as i8, b'r' as i8, 0 as i8];
@@ -101,6 +105,15 @@ pub fn glViewport(x: i32, y: i32, width: i32, height: i32) {
     });
     unsafe { core::mem::transmute::<_, VIEWPORTPROC>(FUNC_PTR) (x, y, width, height); }
 }*/
+
+pub fn glCreateShader(shader_type: u32) -> u32 {
+    static mut FUNC_PTR: win32::FUNCTION_PTR = core::ptr::null_mut();
+    static ONCE: Once = Once::INIT;
+    ONCE.run_once(|| {
+        unsafe { FUNC_PTR = get_gl_func_address("glCreateShader") }
+    });
+    unsafe { core::mem::transmute::<_, CREATESHADERPROC>(FUNC_PTR) (shader_type) }
+}
 
 #[link(name = "Opengl32")]
 extern "stdcall" {
