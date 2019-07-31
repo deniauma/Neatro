@@ -19,10 +19,11 @@ fn main() {
     println!("Opening the window ...");
     let win = Window::new(800, 600);
     let functions = [
-            "glClear",
-            "glClearColor",
-            "glViewport",
-            "glCreateShader"
+            "glShaderSource",
+            "glCompileShader",
+            "glAttachShader",
+            "glCreateShader",
+            "glLinkProgram"
         ];
     println!("GL context: {:?}", unsafe { win32::wglGetCurrentContext() });
     for &func in &functions {
