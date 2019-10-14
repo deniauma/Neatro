@@ -31,6 +31,10 @@ pub type FUNCTION_PTR = *mut FUNCTION_PTR_;
 pub type HMODULE = *mut HMODULE_;
 pub type WNDPROC = unsafe extern "stdcall" fn(_: HWND, _: u32, _: usize, _: isize) -> isize;
 
+pub const STD_INPUT_HANDLE: DWORD = -10i32 as u32;
+pub const STD_OUTPUT_HANDLE: DWORD = -11i32 as u32;
+pub const STD_ERROR_HANDLE: DWORD = -12i32 as u32;
+
 
 #[repr(C)]
 pub struct WNDCLASSW {
@@ -176,6 +180,7 @@ impl PIXELFORMATDESCRIPTOR {
     }
 }
 
+
 #[link(name = "user32")]
 extern "stdcall" {
     pub fn MessageBoxW(
@@ -286,17 +291,20 @@ extern "stdcall" {
         dwSize: usize, 
         dwFreeType: DWORD
     ) -> i32;
+
+    pub fn GetStdHandle(nStdHandle: DWORD) -> HANDLE;
+    pub fn WriteConsoleA(hConsoleOutput: HANDLE, lpBuffer: *const u8, nNumberOfCharsToWrite: DWORD, lpNumberOfCharsWritten: *mut DWORD, lpReserved: LPVOID) -> bool;
 }
 
 #[link(name = "Gdi32")]
 extern "stdcall" {
     pub fn ChoosePixelFormat(hdc: HDC, ppfd: *const PIXELFORMATDESCRIPTOR) -> i32;
-
+    pub fn DescribePixelFormat(hdc: HDC, iPixelFormat: i32, nBytes: u32, ppfd: *const PIXELFORMATDESCRIPTOR) -> i32;
     pub fn SetPixelFormat(
         hdc: HDC, 
         iPixelFormat: i32, 
         ppfd: *const PIXELFORMATDESCRIPTOR
-    ) -> i32;
+    ) -> bool;
 
     pub fn SwapBuffers(hdc: HDC) -> i32;
 }
@@ -375,6 +383,20 @@ impl Window {
             hglrc = wglCreateContext(dc);
             wglMakeCurrent(dc, hglrc);
 
+            //create real window
+            let attrib_list: [i32; 15] = [
+                0x2001, 1,
+                0x2010, 1,
+                0x2011, 1,
+                0x2013, 0x202B,
+                0x2014, 32,
+                0x2022, 24,
+                0x2023, 8,
+                0
+            ];
+            let pixelFormat: i32;
+            let numFormats: u32;
+
             ShowWindow(handle, 1);
         }
         let window = Window {
@@ -414,5 +436,19 @@ impl Drop for Window {
             ReleaseDC(self.hwnd, self.dc);
             DestroyWindow(self.hwnd);
         }
+    }
+}
+
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_write_console() {
+        let std_out = unsafe { GetStdHandle(STD_OUTPUT_HANDLE) };
+        let mut written: DWORD = 0;
+        let text = &[b'H' as u8, b'e' as u8, b'l' as u8, b'l' as u8, b'o' as u8, b'!' as u8];
+        unsafe { WriteConsoleA(std_out, text.as_ptr(), text.len() as u32, &mut written, ptr::null_mut()) };
     }
 }

@@ -111,6 +111,10 @@ impl<T, A: Allocator + Default> CVec<T, A> {
         self.length == 0
     }
 
+    pub fn len(&self) -> usize {
+        self.length
+    }
+
     pub fn as_ptr(&self) -> *const T {
         self.buffer.ptr
     }

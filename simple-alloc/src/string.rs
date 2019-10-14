@@ -20,6 +20,10 @@ impl CString {
         res
     }
 
+    pub fn len(&self) -> usize {
+        self.inner.len()
+    }
+
     pub fn as_ptr(&self) -> *const u8 {
         self.inner.as_ptr()
     }

@@ -4,13 +4,17 @@ use simplealloc::{WinVec, CString, Once};
 
 pub fn get_gl_func(func_name: &str) -> win32::FUNCTION_PTR {
     // let name = &[b'g' as i8, b'l' as i8, b'C' as i8, b'l' as i8, b'e' as i8, b'a' as i8, b'r' as i8, 0 as i8];
-    let name = CString::from_str(func_name).to_i8_str();
+    let name = CString::from_str(func_name).to_i8_str().as_ptr();
     let mut p;
     unsafe {
         // let dll = &[b'o' as u16, b'p' as u16, b'e' as u16, b'n' as u16, b'g' as u16, b'l' as u16, b'3' as u16, b'2' as u16, b'.' as u16, b'd' as u16, b'l' as u16, b'l' as u16, 0 as u16]; //"opengl32.dll"
         let dll = CString::from_str("opengl32.dll").to_u16_str();
         let module = LoadLibraryW(dll.as_ptr());
-        p = wglGetProcAddress(name.as_ptr());
+        p = wglGetProcAddress(name);
+        if p.is_null(){
+            // println!("Re-try: {:?}", p);
+            p = GetProcAddress(module, CString::from_str(func_name).to_i8_str().as_ptr());
+        }
     }
     p
 }
@@ -23,7 +27,14 @@ fn main() {
             "glCompileShader",
             "glAttachShader",
             "glCreateShader",
-            "glLinkProgram"
+            "glLinkProgram",
+            "glDeleteShader",
+            "glViewport",
+            "glClearColor",
+            "glClear",
+            "wglGetExtensionsStringARB",
+            "wglChoosePixelFormatARB",
+            "wglCreateContextAttribsARB"
         ];
     println!("GL context: {:?}", unsafe { win32::wglGetCurrentContext() });
     for &func in &functions {
