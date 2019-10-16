@@ -294,6 +294,7 @@ extern "stdcall" {
 
     pub fn GetStdHandle(nStdHandle: DWORD) -> HANDLE;
     pub fn WriteConsoleA(hConsoleOutput: HANDLE, lpBuffer: *const u8, nNumberOfCharsToWrite: DWORD, lpNumberOfCharsWritten: *mut DWORD, lpReserved: LPVOID) -> bool;
+    pub fn GetLastError() -> DWORD;
 }
 
 #[link(name = "Gdi32")]

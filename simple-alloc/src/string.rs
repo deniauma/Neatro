@@ -17,6 +17,16 @@ impl CString {
         for &c in src.as_bytes() {
             res.inner.push(c);
         }
+        res.inner.push(b'\0');
+        res
+    }
+
+    pub fn from_u8_slice(src: &[u8]) -> Self {
+        let mut res = CString::new();
+        for &c in src {
+            res.inner.push(c);
+        }
+        res.inner.push(b'\0');
         res
     }
 
